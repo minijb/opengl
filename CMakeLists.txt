@@ -20,7 +20,11 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux") # 当前系统为 Linux
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin") 
 endif()
 
-add_executable(MyOpengl src/main.cpp src/glad.c)
+file(GLOB_RECURSE SRC_SOURCES_C CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+file(GLOB_RECURSE SRC_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE SRC_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.h")
+
+add_executable(MyOpengl ${SRC_SOURCES} ${SRC_HEADERS} ${SRC_SOURCES_C})
 
 target_include_directories(MyOpengl PUBLIC include)
 target_include_directories(MyOpengl PUBLIC src)
