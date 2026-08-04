@@ -1,0 +1,45 @@
+# 统一换行符：仓库内一律存 LF；检出时按下面的规则转换，不受各机器 autocrlf 设置影响。
+
+* text=auto
+
+# Git 自身文件也统一 LF
+.gitattributes   text eol=lf
+.gitignore       text eol=lf
+
+# 源码与文本：始终 LF（包括 Windows 检出，避免之前 .md 被转 CRLF 的告警）
+*.c         text eol=lf
+*.cc        text eol=lf
+*.cpp       text eol=lf
+*.h         text eol=lf
+*.hpp       text eol=lf
+*.inl       text eol=lf
+*.lua       text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.json      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.xml       text eol=lf
+*.cmake     text eol=lf
+CMakeLists.txt  text eol=lf
+
+# Shell 脚本必须 LF（WSL 下 CRLF 会报错）；批处理必须 CRLF
+*.sh        text eol=lf
+*.bat       text eol=crlf
+
+# VS 工程文件：CRLF（Windows 惯例；均为 premake 生成物）
+*.sln                   text eol=crlf
+*.vcxproj               text eol=crlf
+*.vcxproj.filters       text eol=crlf
+
+# 二进制：禁止任何换行转换
+*.lib       binary
+*.a         binary
+*.dll       binary
+*.so        binary
+*.exe       binary
+*.obj       binary
+*.o         binary
+*.png       binary
+*.jpg       binary
+*.ico       binary
