@@ -173,16 +173,16 @@ void GLFWWindowImpl::setVsync(bool v)    { m_context->setVsync(v); }
                       └─ 析构顺序：m_context 先于 m_window（成员声明顺序反过来）
 ```
 
-> ⚠️ **成员声明顺序 = 析构顺序（逆序）**。要让 `m_context` 先析构（释放 GL 资源），再析构 `m_window`（销毁窗口），
-> 否则窗口先没了、上下文还在引用它就崩。声明时写：
+> ⚠️ **成员声明顺序 = 析构顺序（逆序）**：后声明的成员先析构。想让 `m_context` 先析构（在窗口销毁前清理 GL 资源），
+> 就要把它声明在 `m_window` **之后**：
 > ```cpp
 > class GLFWWindowImpl {
->     std::unique_ptr<RenderContext> m_context;   // 先声明 → 后析构
->     GLFWwindow* m_window;                       // 后声明 → 先析构 ❌ 顺序错了！
+>     GLFWwindow* m_window;                       // 先声明 → 后析构（窗口最后死）
+>     std::unique_ptr<RenderContext> m_context;   // 后声明 → 先析构（上下文先清理）✅
 > };
 > ```
-> 正确顺序应该是 `m_window` 先析构？不——**上下文要在窗口销毁前清理 GL 资源**，
-> 所以 `m_context` 必须先析构，声明在 `m_window` **之前**。仔细想清楚这点，是 GL 程序的常见崩溃源。
+> 不过注意：GLFW 里上下文随 `glfwDestroyWindow` 一起销毁，所以真正要紧的是——**所有 GL 对象
+> （纹理/VBO/shader）必须在窗口销毁前释放**。依赖成员顺序只是兜底，下面的显式 `shutdown()` 才是工程化的做法。
 
 实际上更稳妥：在 `shutdown()` 里**显式**先 reset context 再 destroy window，不依赖成员声明顺序：
 

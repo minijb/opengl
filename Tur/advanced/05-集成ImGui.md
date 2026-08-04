@@ -88,10 +88,12 @@ public:
 注意第二个参数：`ImGui_ImplGlfw_InitForOpenGL(window, true)` 的 `true` 表示**让 ImGui 自己安装 GLFW 回调**。
 但你已经自己装了回调（[基础篇 04](../basics/04-实现基础GLFWManager.md)）！两种处理：
 
-- 传 `true`：ImGui 会在你的回调**链上**追加自己的（GLFW 支持回调链），你的事件照常收。
-- 传 `false`：你手动在每次 `pollEvents` 后调 `ImGui_ImplGlfw_...` 喂事件。
+- 传 `true`：ImGui 后端会把之前已注册的回调保存下来，在自己的回调里**链式调用**它们，你的事件照常收。
+- 传 `false`：你自己安装回调，把事件转发给 `ImGui_ImplGlfw_KeyCallback` 等后端转发函数。
 
-推荐 `true`——省事，且 ImGui 的 GLFW backend 内部会用 `glfwSet*Callback` 的返回值把前一个回调链接起来。
+推荐 `true`——省事。注意：GLFW 本身**不支持**回调链（`glfwSet*Callback` 是替换语义，只返回旧回调）；
+「链」是 `imgui_impl_glfw.cpp` 自己实现的（源码里的 `PrevUserCallbackKey` 等字段，2018-11-07 的 changelog 写明
+“we save user's previously installed ones - if any - and chain call them”）。
 
 ### 第 3 步：每帧三段式
 
@@ -218,7 +220,7 @@ imguiLayer->end();                             // 统一提交渲染
 | ImGui 画不出来 / 全黑 | `begin()/end()` 顺序错，或 `end()` 在 `swapBuffers` 之后 |
 | 点击 ImGui 时游戏也响应 | 没处理 `WantCaptureMouse`（见 5.4） |
 | 字体是方块 | 没加载中文字体：`io.Fonts->AddFontFromFileTTF("...", 18, nullptr, io.Fonts->GetGlyphRangesChineseFull())` |
-| 鼠标位置偏移 | HiDPI 屏没处理：`glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE)` |
+| 鼠标位置偏移 | HiDPI 屏：ImGui 后端在 `NewFrame` 里读 `glfwGetWindowContentScale` 自动处理（1.90+）；仍偏移就核对 `io.DisplaySize` 与 `io.DisplayFramebufferScale` 是否和窗口 framebuffer 一致。`GLFW_SCALE_TO_MONITOR` 只是窗口跨屏移动时按缩放调整窗口尺寸，不是 ImGui 坐标问题的解药 |
 | `#version` 报错 | `ImGui_ImplOpenGL3_Init` 的版本串和 `glfwWindowHint` 不一致 |
 
 ---

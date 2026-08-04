@@ -143,7 +143,7 @@ GLFWManager::GLFWManager() = default;
 GLFWManager::~GLFWManager() { shutdown(); }
 
 bool GLFWManager::init(const Props& props) {
-    // (1) glfwInit 是进程级的，整个程序只调一次（见 02 篇 + 11 篇）
+    // (1) glfwInit 是进程级的，整个程序只调一次（见 02 篇 + 进阶篇 06）
     static bool glfwInited = false;
     if (!glfwInited) {
         glfwSetErrorCallback(glfwErrorCallback);
@@ -184,6 +184,7 @@ bool GLFWManager::init(const Props& props) {
         glewExperimental = GL_TRUE;                 // core profile 下必须开（见 02 篇 2.3）
         if (glewInit() != GLEW_OK) {
             std::cerr << "Failed to initialize GLEW\n";
+            shutdown();                             // 窗口已建，先销毁再失败返回，避免泄漏
             return false;
         }
         glewInited = true;
@@ -202,7 +203,7 @@ void GLFWManager::shutdown() {
         m_window = nullptr;
     }
     // 故意不调 glfwTerminate()：它是进程级的，
-    // 由程序退出时回收，或在最外层显式调一次。详见 11 篇。
+    // 由程序退出时回收，或在最外层显式调一次。详见进阶篇 06。
 }
 
 void GLFWManager::pollEvents()           { glfwPollEvents(); }
@@ -321,8 +322,8 @@ window.init({.title="Demo", .vsync=false});  // C++20 指定初始化，挑字�
 
 它已经是个**能用的**窗口管理器。下一篇我们把它接进 `main.cpp`，跑出你的第一个「引擎式」窗口。
 
-> 💡 如果你现在就 build，会因为 `main.cpp` 还没改而报「`init` 之类没用到」——没关系，先别 build，
-> 等下一篇改完 `main.cpp` 一起跑。
+> 💡 你现在就 build 也不会报错——`main.cpp` 还没用到新类，只是看不到任何新行为。
+> 先别急着 build，等下一篇改完 `main.cpp` 一起跑。
 
 ---
 

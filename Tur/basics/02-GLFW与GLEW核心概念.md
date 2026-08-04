@@ -70,8 +70,10 @@ glDrawArrays = (PFNGLDRAWARRAYSPROC)wglGetProcAddress("glDrawArrays");
 每换一张显卡、每换一个驱动版本，地址都可能不同。GLEW 一次性帮你把几千个函数指针全填好，
 填好后你才能像普通函数一样调用 `glDrawArrays(...)`。
 
-> ⚠️ **坑**：core profile 下必须 `glewExperimental = GL_TRUE;` 再 `glewInit()`，
-> 否则很多扩展函数加载不到、调用就崩。这一行在 04 篇的实现里有。
+> ⚠️ **坑**：core profile 下通常要 `glewExperimental = GL_TRUE;` 再 `glewInit()`，
+> 否则很多扩展函数加载不到、调用就崩——这是 GLEW 1.x 时代的经典坑。
+> **GLEW 2.x 起基本不需要它了**：2.x 枚举扩展走 `glGetIntegerv(GL_NUM_EXTENSIONS)`，
+> 这个变量属于遗留习惯（教程保留这一行，设了也无害）。这一行在 04 篇的实现里有。
 
 ---
 
@@ -165,12 +167,15 @@ void callback(GLFWwindow* w, ...) {
 | 库 | 版本 | 作用 |
 |---|---|---|
 | GLFW | 3.4 | 窗口 / 输入 |
-| GLEW | 2.3.1 | 加载 GL 函数指针（`glew_s` 静态库） |
+| GLEW | 2.3.4 | 加载 GL 函数指针（`glew_s` 静态库） |
 | GLM | 最新 | 数学库（向量、矩阵），和窗口无关，渲染才用 |
 | OpenGL | 4.1 Core | 目标 GL 版本（`main.cpp` 里 `CONTEXT_VERSION 4,1`） |
 
 > ⚠️ macOS 上 4.1 是支持上限，且必须加 `glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE)`。
 > Windows / Linux 通常能上到 4.6。教程为兼容统一写 4.1，你在 Windows 上想用 4.6 直接改 hint 即可。
+
+> 📌 版本以 `lib/` 内头文件为准：`glew-2.3.1/` 目录名的版本号已过时，头文件 `glew.h` 里的
+> 版本宏是 **2.3.4**（`GLEW_VERSION_MINOR 3 / MICRO 4`）。
 
 ---
 
