@@ -74,6 +74,18 @@
 | [07](advanced/07-性能与多线程.md) | 性能与多线程 | 帧时间、固定步长、异步加载、线程安全 |
 | [08](advanced/08-测试与验证.md) | 测试与验证 | doctest、AAA、纯逻辑测试、Fake |
 
+### 拓展篇（Extra）
+
+独立成篇的专题深潜，按需选读，相互以「下一篇 Extra」串成链：
+
+| 标题 | 一句话 |
+|---|---|
+| [`std::function` 完全指南](extra/std-function完全指南.md) | 类型擦除、SBO、什么时候不该用 |
+| [`std::bind` / lambda / `std::ref` 完全指南](extra/std-bind-lambda-ref完全指南.md) | 造可调用对象的三种手段与取舍 |
+| [事件系统架构全景：七种模式对比](extra/事件系统架构全景-七种模式对比.md) | Dispatcher / Signal-Slot / EventQueue / PubSub / ECS / Rx |
+| [Signal/Slot 信号槽完全指南](extra/Signal-Slot信号槽完全指南.md) ★ 新增 | 多播回调、连接管理、自研 MiniSignal 与 Boost.Signals2 全解（练习含全部答案） |
+| [OS 信号处理 signal 完全指南](extra/OS信号处理signal完全指南.md) ★ 新增 | Ctrl+C、异步信号安全、优雅退出引擎主循环（练习含全部答案） |
+
 ---
 
 ## 项目环境说明
