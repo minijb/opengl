@@ -48,16 +48,11 @@ void setKeyCallback(KeyCallback cb) { m_keyCb = std::move(cb); }
 
 ## 3. 概念与术语
 
-```
-   发布者 (Publisher)                 订阅者 (Subscribers)
-┌──────────────────┐   emit(655, 0, 1, 0)
-│  GLFWManager     │──────────────► ┌─────────┐ ┌─────────┐ ┌─────────┐
-│                  │               │ 槽 slot1 │ │ 槽 slot2 │ │ 槽 slot3 │
-│  Signal<int,...> │               │ ImGui   │ │ Input  │ │ DebugLog│
-│   ┌──────────┐   │               └────▲────┘ └────▲────┘ └────▲────┘
-│   │ 槽列表    │───┼─── connection ────┘           │            │
-│   └──────────┘   │   (连接，可断开)               │            │
-└──────────────────┘                               │            │
+```mermaid
+flowchart LR
+    M["GLFWManager<br/>Signal&lt;int,...&gt;<br/>内含槽列表"] -->|"emit(655, 0, 1, 0)"| S1["槽 slot1<br/>ImGui"]
+    M -->|"connection 连接，可断开"| S2["槽 slot2<br/>Input"]
+    M -->|connection| S3["槽 slot3<br/>DebugLog"]
 ```
 
 | 术语 | 一句话 | 你已知的对应物 |

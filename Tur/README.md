@@ -76,15 +76,23 @@
 
 ### 拓展篇（Extra）
 
-独立成篇的专题深潜，按需选读，相互以「下一篇 Extra」串成链：
+独立成篇的专题深潜，按需选读；事件系统七种模式各有配套专题（全景篇 ①-⑦ 节均带入口链接）：
 
 | 标题 | 一句话 |
 |---|---|
 | [`std::function` 完全指南](extra/std-function完全指南.md) | 类型擦除、SBO、什么时候不该用 |
 | [`std::bind` / lambda / `std::ref` 完全指南](extra/std-bind-lambda-ref完全指南.md) | 造可调用对象的三种手段与取舍 |
-| [事件系统架构全景：七种模式对比](extra/事件系统架构全景-七种模式对比.md) | Dispatcher / Signal-Slot / EventQueue / PubSub / ECS / Rx |
-| [Signal/Slot 信号槽完全指南](extra/Signal-Slot信号槽完全指南.md) ★ 新增 | 多播回调、连接管理、自研 MiniSignal 与 Boost.Signals2 全解（练习含全部答案） |
-| [OS 信号处理 signal 完全指南](extra/OS信号处理signal完全指南.md) ★ 新增 | Ctrl+C、异步信号安全、优雅退出引擎主循环（练习含全部答案） |
+| [事件系统架构全景：七种模式对比](extra/事件系统架构全景-七种模式对比.md) | 七种事件架构 + 选型决策树（①-⑦ 的总纲） |
+| [Signal/Slot 信号槽完全指南](extra/Signal-Slot信号槽完全指南.md) ★ | 模式②：多播回调、自研 MiniSignal 与 Boost.Signals2 全解 |
+| [Delegate 委托模式完全指南](extra/Delegate委托模式完全指南.md) ★ | 模式③：零分配委托、Unreal 分级体系、弱引用广播 |
+| [事件队列 EventQueue 完全指南](extra/事件队列EventQueue完全指南.md) ★ | 模式④：时序解耦、定时事件、跨线程投递、录制回放 |
+| [消息总线 MessageBus 完全指南](extra/消息总线MessageBus完全指南.md) ★ | 模式⑤：强/弱类型双实现、完全匿名通信的代价与治理 |
+| [ECS 事件系统完全指南](extra/ECS事件系统完全指南.md) ★ | 模式⑥：EnTT dispatcher、事件 vs 一次性组件 |
+| [响应式 Observable 完全指南](extra/响应式Observable完全指南.md) ★ | 模式⑦：ReactiveProperty、派生流、UI 数据绑定 |
+| [OS 信号处理 signal 完全指南](extra/OS信号处理signal完全指南.md) ★ | Ctrl+C、异步信号安全、优雅退出引擎主循环 |
+| [C++ 模板完全指南](extra/Cpp模板完全指南.md) ★ | 函数/类模板、变参、SFINAE、Concepts、完美转发；10 道练习全附答案 |
+
+> ★ 标记的篇目（模式专题 + C++ 模板）练习均附全部参考答案。
 
 ---
 
