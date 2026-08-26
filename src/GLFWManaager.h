@@ -8,5 +8,4 @@ class GLFWManager{
 public:
     GLFWManager();
 private:
-
 };
