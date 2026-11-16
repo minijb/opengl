@@ -1,0 +1,16 @@
+
+{
+    "name": "cg-lab",
+    "version-string": "0.1.0",
+    "dependencies": [
+        "glfw3",
+        "glm",
+        {
+            "name": "glad",
+            "features": [
+                "gl-api-43",
+                "loader"
+            ]
+        }
+    ]
+}
