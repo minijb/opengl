@@ -14,6 +14,10 @@ add_executable(CG_Lab
     src/main.cpp
 )
 
+target_include_directories(CG_Lab PUBLIC
+    include
+)
+
 target_compile_definitions(CG_Lab PRIVATE
     GLFW_INCLUDE_NONE
 )
