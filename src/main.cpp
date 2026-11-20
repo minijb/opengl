@@ -1,4 +1,5 @@
 #include "gl_common.hpp"
+#include "window.hpp"
 #define STB_IMAGE_IMPLEMENTATION
 #include "texture_common.hpp"
 
@@ -23,7 +24,8 @@ int main(int argc, char** argv) {
     int maxFrames = -1;
     if (!tutorial::parseArguments(argc, argv, hidden, maxFrames,
             "Usage: part01_13_depth_culling [--hidden] [--max-frames N]")) return 2;
-    GLFWwindow* window = tutorial::createWindow("Part 01.13 - Depth and culling", hidden);
+    const tutorial::GlfwContext glfwContext;
+    tutorial::Window window("Part 01.13 - Depth and culling", 960, 640, hidden);
     if (!window) return 1;
     const GLuint program = tutorial::createProgram(vertexSource, fragmentSource);
     const GLuint texture = tutorial::loadTexture(std::string(TEXTURE_DIR) + "/checker.ppm");
@@ -36,11 +38,11 @@ int main(int argc, char** argv) {
     bool depth = true, culling = true, ccw = true;
     bool previousD = false, previousC = false, previousF = false;
     int frame = 0;
-    while (!glfwWindowShouldClose(window)) {
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
-        const bool d = glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
-        const bool c = glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS;
-        const bool f = glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS;
+    while (!window.shouldClose()) {
+        if (window.keyPressed(GLFW_KEY_ESCAPE)) window.requestClose();
+        const bool d = window.keyPressed(GLFW_KEY_D);
+        const bool c = window.keyPressed(GLFW_KEY_C);
+        const bool f = window.keyPressed(GLFW_KEY_F);
         if (d && !previousD) depth = !depth;
         if (c && !previousC) culling = !culling;
         if (f && !previousF) ccw = !ccw;
@@ -48,7 +50,7 @@ int main(int argc, char** argv) {
         if (depth) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
         if (culling) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
         glFrontFace(ccw ? GL_CCW : GL_CW);
-        int width = 0, height = 0; glfwGetFramebufferSize(window, &width, &height);
+        const auto [width, height] = window.framebufferSize();
         const glm::mat4 view = glm::lookAt(glm::vec3{3.0F, 2.0F, 5.0F}, glm::vec3{0.0F}, glm::vec3{0.0F,1.0F,0.0F});
         const glm::mat4 projection = glm::perspective(glm::radians(45.0F), static_cast<float>(width) / std::max(height, 1), 0.1F, 100.0F);
         glClearColor(0.05F, 0.06F, 0.10F, 1.0F); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -59,11 +61,11 @@ int main(int argc, char** argv) {
             glm::mat4 model{1.0F}; model = glm::translate(model, position);
             tutorial::setMat4(program, "uModel", model); cube.draw();
         }
-        glfwSwapBuffers(window); glfwPollEvents();
-        if (maxFrames > 0 && ++frame >= maxFrames) glfwSetWindowShouldClose(window, GLFW_TRUE);
+        window.swapBuffers(); window.pollEvents();
+        if (maxFrames > 0 && ++frame >= maxFrames) window.requestClose();
     }
     cube.destroy(); glDeleteTextures(1, &texture); glDeleteProgram(program);
-    glfwDestroyWindow(window); glfwTerminate();
+    // window / glfwContext 析构时自动 glfwDestroyWindow / glfwTerminate
     return 0;
 }
 

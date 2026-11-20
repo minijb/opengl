@@ -32,51 +32,6 @@ inline bool parseArguments(int argc, char** argv, bool& hidden, int& maxFrames, 
     return true;
 }
 
-inline void framebufferSizeCallback(GLFWwindow*, int width, int height) {
-    glViewport(0, 0, width, height);
-}
-
-inline void glfwErrorCallback(int error, const char* description) {
-    std::fprintf(stderr, "GLFW error %d: %s\n", error, description);
-}
-
-inline GLFWwindow* createWindow(const char* title, bool hidden) {
-    glfwSetErrorCallback(glfwErrorCallback);
-    if (!glfwInit()) {
-        std::fputs("Failed to initialize GLFW\n", stderr);
-        return nullptr;
-    }
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_VISIBLE, hidden ? GLFW_FALSE : GLFW_TRUE);
-#ifdef __APPLE__
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-#endif
-    GLFWwindow* window = glfwCreateWindow(960, 640, title, nullptr, nullptr);
-    if (!window) {
-        std::fputs("An OpenGL 3.3 Core context is required\n", stderr);
-        glfwTerminate();
-        return nullptr;
-    }
-    glfwMakeContextCurrent(window);
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
-        std::fputs("Failed to load OpenGL functions\n", stderr);
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return nullptr;
-    }
-    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
-    int width = 0;
-    int height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-    glViewport(0, 0, width, height);
-    glfwSwapInterval(1);
-    std::printf("OpenGL version: %s\n", glGetString(GL_VERSION));
-    std::printf("Renderer: %s\n", glGetString(GL_RENDERER));
-    return window;
-}
-
 inline GLuint compileShader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
