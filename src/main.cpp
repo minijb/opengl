@@ -1,71 +1,200 @@
-#include "gl_common.hpp"
-#include "window.hpp"
-#define STB_IMAGE_IMPLEMENTATION
-#include "texture_common.hpp"
+// LearnOpenGL 3.3.shaders_class: 手写流程
+// GLFW 窗口 -> glad 加载 -> ReadFile(std::optional) -> 编译/链接着色器
+// -> VAO/VBO -> 渲染循环 -> 清理
+#include <glad/glad.h>       // 必须在 GLFW 之前
+#include <GLFW/glfw3.h>
 
-namespace {
-const char* vertexSource = R"glsl(#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aUV;
-out vec2 vUV;
-uniform mat4 uModel, uView, uProjection;
-void main() { gl_Position = uProjection * uView * uModel * vec4(aPos, 1.0); vUV = aUV; }
-)glsl";
-const char* fragmentSource = R"glsl(#version 330 core
-in vec2 vUV;
-out vec4 FragColor;
-uniform sampler2D uTexture;
-void main() { FragColor = texture(uTexture, vUV); }
-)glsl";
+#include <cstdio>
+
+#include "tools.hpp"
+
+// CMake 已把 shader/ 复制到 exe 同级目录, SHADER_DIR 宏指向那里
+#define SHADER(rel) SHADER_DIR "/" rel
+
+// 三角形: 每顶点 6 个 float(位置 vec3 + 颜色 vec3),
+// 与着色器里 location 0 的 aPos、location 1 的 aColor 对应
+float vertices[] = {
+    // 位置              // 颜色
+     0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // 右下 红
+    -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // 左下 绿
+     0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   // 顶部  蓝
+};
+
+float vertices1[] = {
+    // 位置              // 颜色
+     0.1f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // 右下 红
+    -0.1f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // 左下 绿
+     0.1f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   // 顶部  蓝
+};
+
+void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
+{
+    glViewport(0, 0, width, height);
 }
 
-int main(int argc, char** argv) {
-    bool hidden = false;
-    int maxFrames = -1;
-    if (!tutorial::parseArguments(argc, argv, hidden, maxFrames,
-            "Usage: part01_13_depth_culling [--hidden] [--max-frames N]")) return 2;
-    const tutorial::GlfwContext glfwContext;
-    tutorial::Window window("Part 01.13 - Depth and culling", 960, 640, hidden);
-    if (!window) return 1;
-    const GLuint program = tutorial::createProgram(vertexSource, fragmentSource);
-    const GLuint texture = tutorial::loadTexture(std::string(TEXTURE_DIR) + "/checker.ppm");
-    if (!program || !texture) return 1;
-    tutorial::CubeGeometry cube;
-    glUseProgram(program); tutorial::setInt(program, "uTexture", 0);
-    glEnable(GL_DEPTH_TEST); glDepthFunc(GL_LESS);
-    glEnable(GL_CULL_FACE); glCullFace(GL_BACK); glFrontFace(GL_CCW);
-    std::puts("D: depth test; C: back-face culling; F: front winding; Esc: exit");
-    bool depth = true, culling = true, ccw = true;
-    bool previousD = false, previousC = false, previousF = false;
-    int frame = 0;
-    while (!window.shouldClose()) {
-        if (window.keyPressed(GLFW_KEY_ESCAPE)) window.requestClose();
-        const bool d = window.keyPressed(GLFW_KEY_D);
-        const bool c = window.keyPressed(GLFW_KEY_C);
-        const bool f = window.keyPressed(GLFW_KEY_F);
-        if (d && !previousD) depth = !depth;
-        if (c && !previousC) culling = !culling;
-        if (f && !previousF) ccw = !ccw;
-        previousD = d; previousC = c; previousF = f;
-        if (depth) glEnable(GL_DEPTH_TEST); else glDisable(GL_DEPTH_TEST);
-        if (culling) glEnable(GL_CULL_FACE); else glDisable(GL_CULL_FACE);
-        glFrontFace(ccw ? GL_CCW : GL_CW);
-        const auto [width, height] = window.framebufferSize();
-        const glm::mat4 view = glm::lookAt(glm::vec3{3.0F, 2.0F, 5.0F}, glm::vec3{0.0F}, glm::vec3{0.0F,1.0F,0.0F});
-        const glm::mat4 projection = glm::perspective(glm::radians(45.0F), static_cast<float>(width) / std::max(height, 1), 0.1F, 100.0F);
-        glClearColor(0.05F, 0.06F, 0.10F, 1.0F); glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glUseProgram(program); tutorial::setMat4(program, "uView", view); tutorial::setMat4(program, "uProjection", projection);
-        glActiveTexture(GL_TEXTURE0); glBindTexture(GL_TEXTURE_2D, texture);
-        const glm::vec3 positions[] = {{0.0F,0.0F,0.0F}, {0.55F,0.25F,-0.65F}};
-        for (const glm::vec3& position : positions) {
-            glm::mat4 model{1.0F}; model = glm::translate(model, position);
-            tutorial::setMat4(program, "uModel", model); cube.draw();
-        }
-        window.swapBuffers(); window.pollEvents();
-        if (maxFrames > 0 && ++frame >= maxFrames) window.requestClose();
+void processInput(GLFWwindow* window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
+
+// 编译单个着色器; 失败时打印 InfoLog 并返回 0
+unsigned int compileShader(GLenum type, const char* source)
+{
+    const unsigned int shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, nullptr);   // 注意: 传 &source(指针的地址)
+    glCompileShader(shader);
+
+    int success = 0;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        char log[1024];
+        glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
+        std::fprintf(stderr, "ERROR::SHADER::COMPILE_FAILED (%s)\n%s\n",
+                     type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT", log);
+        glDeleteShader(shader);
+        return 0;
     }
-    cube.destroy(); glDeleteTextures(1, &texture); glDeleteProgram(program);
-    // window / glfwContext 析构时自动 glfwDestroyWindow / glfwTerminate
+    return shader;
+}
+
+// 编译并链接 VS + FS; 成功返回 program, 失败返回 0
+unsigned int buildProgram(const char* vsSource, const char* fsSource)
+{
+    const unsigned int vs = compileShader(GL_VERTEX_SHADER, vsSource);
+    const unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fsSource);
+    if (vs == 0 || fs == 0) {
+        glDeleteShader(vs);
+        glDeleteShader(fs);
+        return 0;
+    }
+
+    const unsigned int program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glLinkProgram(program);
+    // 着色器对象链接进 program 之后就没用了, 立刻删
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    int success = 0;
+    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    if (!success) {
+        char log[1024];
+        glGetProgramInfoLog(program, sizeof(log), nullptr, log);
+        std::fprintf(stderr, "ERROR::PROGRAM::LINK_FAILED\n%s\n", log);
+        glDeleteProgram(program);
+        return 0;
+    }
+    return program;
+}
+
+int main()
+{
+    // ---- 1. GLFW 初始化 + 创建窗口 ----
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow* window = glfwCreateWindow(800, 600, "3.3.shaders_class", nullptr, nullptr);
+    if (!window) {
+        std::fprintf(stderr, "Failed to create GLFW window\n");
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);      // 有上下文后才能调 gl* 函数
+    glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+
+    // ---- 2. glad: 加载 OpenGL 函数指针 ----
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        std::fprintf(stderr, "Failed to initialize GLAD\n");
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return -1;
+    }
+
+    // ---- 3. 读着色器源码(ReadFile 返回 std::optional, 失败要提前退出) ----
+    const auto vsSource = ReadFile(SHADER("1.getting_started/3.3.shaders_class/3.3.shader.vs"));
+    const auto fsSource = ReadFile(SHADER("1.getting_started/3.3.shaders_class/3.3.shader.fs"));
+    if (!vsSource || !fsSource) {
+        std::fprintf(stderr, "Failed to read shader files\n");
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return -1;
+    }
+
+    // ---- 4. 编译 + 链接 ----
+    const unsigned int shaderProgram = buildProgram(vsSource->c_str(), fsSource->c_str());
+    if (shaderProgram == 0) {
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return -1;
+    }
+
+    // ---- 5. VAO + VBO ----
+    unsigned int VBO = 0, VAO = 0;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+
+    glBindVertexArray(VAO);              // 记录后续属性配置的"容器"
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    // location 0: aPos,   偏移 0,     3 个 float
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // location 1: aColor, 偏移 3 float, 3 个 float(步长是整顶点 6 float)
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    unsigned int VBO1, VAO1;
+    glGenVertexArrays(1, &VAO1);
+    glGenBuffers(1, &VBO1);
+    
+    glBindVertexArray(VAO1);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO1);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices1), vertices1, GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    
+    bool isLine = false;
+    
+
+    // ---- 6. 渲染循环 ----
+    while (!glfwWindowShouldClose(window)) {
+        processInput(window);
+        
+        if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
+            isLine = !isLine;
+        }
+
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        
+        if (isLine)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        else
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+        glUseProgram(shaderProgram);
+        glBindVertexArray(VAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(VAO1);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    // ---- 7. 清理 ----
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteProgram(shaderProgram);
+    glfwDestroyWindow(window);
+    glfwTerminate();
     return 0;
 }
-

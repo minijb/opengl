@@ -16,6 +16,7 @@ find_package(glad CONFIG REQUIRED)
 
 add_executable(CG_Lab
     src/main.cpp
+    src/tools.cpp
     src/window.cpp
 )
 
