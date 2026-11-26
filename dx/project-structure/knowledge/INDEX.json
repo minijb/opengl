@@ -1,0 +1,34 @@
+{
+  "folder": "knowledge",
+  "generated": "2026-11-27T00:22:58+08:00",
+  "items": [
+    {
+      "file": "asset-dir-wiring.md",
+      "title": "资产目录接线（shader/texture/model 的复制机制与新增步骤）",
+      "brief": "CMake 如何把资产目录同步到 exe 旁,以及新增一个资产目录需要改哪三处。",
+      "tags": [
+        "structure",
+        "cmake",
+        "assets"
+      ]
+    },
+    {
+      "file": "code-placement.md",
+      "title": "代码落位规则（src / include / place / temp 怎么选）",
+      "brief": "新写一个 .cpp/.hpp 时该放哪个目录,含 stb_impl.cpp 这个唯一例外案例。",
+      "tags": [
+        "structure",
+        "code-organization"
+      ]
+    },
+    {
+      "file": "folder-map.md",
+      "title": "全部目录一览表（角色 / 参与构建? / git 跟踪?）",
+      "brief": "每个文件夹的作用与状态,按\"代码/资产/学习记录/构建产物/版本控制与工具\"分组。",
+      "tags": [
+        "structure",
+        "directory"
+      ]
+    }
+  ]
+}

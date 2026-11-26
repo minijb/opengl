@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "generated": "2026-11-27T00:22:58+08:00",
+  "units": [
+    {
+      "id": "project-structure",
+      "title": "项目目录结构（各文件夹的作用）",
+      "brief": "本仓库(LearnOpenGL 学习项目 CG_Lab)每个文件夹的角色、是否参与构建/git 跟踪,以及新代码与新资产目录的落位/接线方法。",
+      "tags": [
+        "structure",
+        "directory",
+        "onboarding",
+        "cmake"
+      ],
+      "aliases": [
+        "目录结构",
+        "文件夹作用",
+        "项目布局"
+      ],
+      "father": null,
+      "children": [],
+      "has": {
+        "knowledge": true,
+        "reference": true
+      },
+      "files": {
+        "knowledge": 3,
+        "reference": 0
+      }
+    }
+  ],
+  "tags": {
+    "cmake": [
+      "project-structure"
+    ],
+    "directory": [
+      "project-structure"
+    ],
+    "onboarding": [
+      "project-structure"
+    ],
+    "structure": [
+      "project-structure"
+    ]
+  },
+  "lookup": {
+    "project-structure": [
+      "project-structure"
+    ],
+    "文件夹作用": [
+      "project-structure"
+    ],
+    "目录结构": [
+      "project-structure"
+    ],
+    "项目布局": [
+      "project-structure"
+    ],
+    "项目目录结构（各文件夹的作用）": [
+      "project-structure"
+    ]
+  }
+}
