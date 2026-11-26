@@ -1,30 +1,39 @@
-// LearnOpenGL 3.3.shaders_class: 手写流程
-// GLFW 窗口 -> glad 加载 -> ReadFile(std::optional) -> 编译/链接着色器
-// -> VAO/VBO -> 渲染循环 -> 清理
+// LearnOpenGL 4.2.textures_combined: 双纹理混合 —— Texture2D(CRTP)首次正式登场
+//
+// 对比手写版, 本课的三块封装分工:
+//   Texture2D::fromFile        ← stbi 加载 + 采样参数 + 上传 + mipmap("构造即完成全部参数")
+//   索引 Mesh(EBO 首次登场)    ← 第一张"共享顶点"网格, glDrawElements 路线
+//   program.setInt(名字, 单元) ← glUniform1i: sampler 存的是【纹理单元编号】
+// GLFW 窗口 -> glad -> Program -> Texture2D x2 -> 索引 Mesh -> 渲染循环 -> 自动清理
 #include <glad/glad.h>       // 必须在 GLFW 之前
 #include <GLFW/glfw3.h>
 
+#include "gl_mesh.hpp"       // Mesh(VAO+VBO+EBO 组合所有权)
+#include "gl_program.hpp"    // Program / Shader(GLObject CRTP 派生)
+#include "gl_texture.hpp"    // Texture2D(GLObject CRTP 派生)
+
 #include <cstdio>
 
-#include "tools.hpp"
+namespace t = tutorial::gl;   // 命名空间别名(仅本文件作用域)
 
-// CMake 已把 shader/ 复制到 exe 同级目录, SHADER_DIR 宏指向那里
-#define SHADER(rel) SHADER_DIR "/" rel
+// CMake 已把 shader/、texture/ 复制到 exe 同级目录
+#define SHADER(rel)   SHADER_DIR "/" rel
+#define TEXTURE(rel)  TEXTURE_DIR "/" rel
 
-// 三角形: 每顶点 6 个 float(位置 vec3 + 颜色 vec3),
-// 与着色器里 location 0 的 aPos、location 1 的 aColor 对应
+// 四边形: 每顶点 8 个 float(位置 vec3 + 颜色 vec3 + uv vec2),
+// 与着色器里 location 0 的 aPos、1 的 aColor、2 的 aTexCoord 对应
 float vertices[] = {
-    // 位置              // 颜色
-     0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // 右下 红
-    -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // 左下 绿
-     0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   // 顶部  蓝
+    // 位置                // 颜色             // uv
+     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f,   // 右上
+     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f,   // 右下
+    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f,   // 左下
+    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f,   // 左上
 };
-
-float vertices1[] = {
-    // 位置              // 颜色
-     0.1f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // 右下 红
-    -0.1f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // 左下 绿
-     0.1f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f,   // 顶部  蓝
+// EBO: 4 个顶点拼出 2 个三角形(共享对角线顶点, 交错布局下省内存);
+// draw 时由 glDrawElements 按下标取顶点, Mesh::draw 内部自动走索引路径
+unsigned int indices[] = {
+    0, 1, 3,   // 三角形 1: 右上-右下-左上
+    1, 2, 3,   // 三角形 2: 右下-左下-左上
 };
 
 void framebufferSizeCallback(GLFWwindow* /*window*/, int width, int height)
@@ -38,57 +47,6 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
 }
 
-// 编译单个着色器; 失败时打印 InfoLog 并返回 0
-unsigned int compileShader(GLenum type, const char* source)
-{
-    const unsigned int shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);   // 注意: 传 &source(指针的地址)
-    glCompileShader(shader);
-
-    int success = 0;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char log[1024];
-        glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-        std::fprintf(stderr, "ERROR::SHADER::COMPILE_FAILED (%s)\n%s\n",
-                     type == GL_VERTEX_SHADER ? "VERTEX" : "FRAGMENT", log);
-        glDeleteShader(shader);
-        return 0;
-    }
-    return shader;
-}
-
-// 编译并链接 VS + FS; 成功返回 program, 失败返回 0
-unsigned int buildProgram(const char* vsSource, const char* fsSource)
-{
-    const unsigned int vs = compileShader(GL_VERTEX_SHADER, vsSource);
-    const unsigned int fs = compileShader(GL_FRAGMENT_SHADER, fsSource);
-    if (vs == 0 || fs == 0) {
-        glDeleteShader(vs);
-        glDeleteShader(fs);
-        return 0;
-    }
-
-    const unsigned int program = glCreateProgram();
-    glAttachShader(program, vs);
-    glAttachShader(program, fs);
-    glLinkProgram(program);
-    // 着色器对象链接进 program 之后就没用了, 立刻删
-    glDeleteShader(vs);
-    glDeleteShader(fs);
-
-    int success = 0;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        char log[1024];
-        glGetProgramInfoLog(program, sizeof(log), nullptr, log);
-        std::fprintf(stderr, "ERROR::PROGRAM::LINK_FAILED\n%s\n", log);
-        glDeleteProgram(program);
-        return 0;
-    }
-    return program;
-}
-
 int main()
 {
     // ---- 1. GLFW 初始化 + 创建窗口 ----
@@ -97,7 +55,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "3.3.shaders_class", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(800, 600, "4.2.textures_combined", nullptr, nullptr);
     if (!window) {
         std::fprintf(stderr, "Failed to create GLFW window\n");
         glfwTerminate();
@@ -114,91 +72,68 @@ int main()
         return -1;
     }
 
-    // ---- 3. 读着色器源码(ReadFile 返回 std::optional, 失败要提前退出) ----
-    const auto vsSource = ReadFile(SHADER("1.getting_started/3.3.shaders_class/3.3.shader.vs"));
-    const auto fsSource = ReadFile(SHADER("1.getting_started/3.3.shaders_class/3.3.shader.fs"));
-    if (!vsSource || !fsSource) {
-        std::fprintf(stderr, "Failed to read shader files\n");
+    // ---- 3+4. 着色器: 一个工厂调用 = 读文件 + 编译 + 链接 ----
+    const auto program = t::Program::fromFiles(
+        SHADER("1.getting_started/4.2.textures_combined/4.2.texture.vs"),
+        SHADER("1.getting_started/4.2.textures_combined/4.2.texture.fs"));
+    if (!program) {
+        std::fprintf(stderr, "Failed to create shader program\n");
         glfwDestroyWindow(window);
         glfwTerminate();
         return -1;
     }
 
-    // ---- 4. 编译 + 链接 ----
-    const unsigned int shaderProgram = buildProgram(vsSource->c_str(), fsSource->c_str());
-    if (shaderProgram == 0) {
+    // ---- 5. 纹理(本课主角): 两张图, 两个单元 ----
+    // container.jpg  = JPEG, 3 通道   → 自动映射 GL_RGB;
+    // awesomeface.png = PNG,  4 通道   → 自动映射 GL_RGBA(通道映射的实测)。
+    // flipVertically 默认开: 图片自上而下存行, GL 的 UV 原点在左下。
+    // 失败得"无效对象"(日志已在工厂里打到 stderr)。
+    const auto container   = t::Texture2D::fromFile(TEXTURE("1.getting_started/container.jpg"));
+    const auto awesomeface = t::Texture2D::fromFile(TEXTURE("1.getting_started/awesomeface.png"));
+    if (!container || !awesomeface) {
+        std::fprintf(stderr, "Failed to load textures\n");
         glfwDestroyWindow(window);
         glfwTerminate();
         return -1;
     }
 
-    // ---- 5. VAO + VBO ----
-    unsigned int VBO = 0, VAO = 0;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
+    // ---- 6. Mesh: 索引网格(EBO 首次登场)----
+    // 构造内部: vao.bind → vbo 绑定+上传 → 逐条写属性表 → ebo 绑定+上传
+    // (EBO 的绑定属于 VAO 状态, 必须在 VAO 绑定期间做)→ unbind VAO。
+    // indexType = GL_UNSIGNED_INT: indices 数组元素是 unsigned int。
+    const t::Mesh quad{vertices, sizeof(vertices),
+        indices, sizeof(indices), GL_UNSIGNED_INT, {
+        {0, 3, 8 * sizeof(float), 0},                  // aPos:     3 float, 偏移 0
+        {1, 3, 8 * sizeof(float), 3 * sizeof(float)},  // aColor:   3 float, 偏移 3 float
+        {2, 2, 8 * sizeof(float), 6 * sizeof(float)},  // aTexCoord 2 float, 偏移 6 float
+    }};
 
-    glBindVertexArray(VAO);              // 记录后续属性配置的"容器"
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // ---- 7. 纹理单元接线(本课唯一的新知识点)----
+    // "绑定"是双层动作: 先选单元(glActiveTexture), 再把纹理挂上去(glBindTexture);
+    // sampler uniform 的值 = 【单元编号】(GLint), 不是纹理 id!
+    //   sampler texture1 在 shader 里读"0 号单元上挂着的纹理"。
+    // 只需接线一次: 单元→纹理 的绑定是全局状态, 没人动它就一直有效。
+    container.bind(0);    // container   → 0 号单元
+    awesomeface.bind(1);  // awesomeface → 1 号单元
+    program.setInt("texture1", 0);  // 告诉 texture1 去 0 号单元取
+    program.setInt("texture2", 1);  // 告诉 texture2 去 1 号单元取
 
-    // location 0: aPos,   偏移 0,     3 个 float
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // location 1: aColor, 偏移 3 float, 3 个 float(步长是整顶点 6 float)
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    
-    unsigned int VBO1, VAO1;
-    glGenVertexArrays(1, &VAO1);
-    glGenBuffers(1, &VBO1);
-    
-    glBindVertexArray(VAO1);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO1);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices1), vertices1, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-    
-    bool isLine = false;
-    
-
-    // ---- 6. 渲染循环 ----
+    // ---- 8. 渲染循环 ----
     while (!glfwWindowShouldClose(window)) {
         processInput(window);
-        
-        if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS){
-            isLine = !isLine;
-        }
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        
-        if (isLine)
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-        float timeValue = glfwGetTime();
-        float greenVlaue = (sin(timeValue) / 2.0f) + 0.5f;
-        int vertexColorLocation = glGetUniformLocation(shaderProgram, "uniColor");
-
-        glUseProgram(shaderProgram);
-        glUniform3f(vertexColorLocation, 0.0f, greenVlaue, 0.0f);       
-        glBindVertexArray(VAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glBindVertexArray(VAO1);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        quad.draw();   // 内部: bind VAO → glDrawElements(索引路径)
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    // ---- 7. 清理 ----
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteProgram(shaderProgram);
+    // ---- 9. 清理: RAII 全自动 ----
+    // 析构逆序: quad(VAO 先死解除引用 → EBO → VBO)→ awesomeface/container
+    // (glDeleteTextures)→ program(glDeleteProgram)。GL 上下文此刻仍有效。
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;

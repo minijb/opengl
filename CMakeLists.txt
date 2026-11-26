@@ -18,6 +18,7 @@ add_executable(CG_Lab
     src/main.cpp
     src/tools.cpp
     src/window.cpp
+    src/stb_impl.cpp
 )
 
 target_include_directories(CG_Lab PUBLIC
