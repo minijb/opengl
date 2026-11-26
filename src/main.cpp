@@ -180,7 +180,12 @@ int main()
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+        float timeValue = glfwGetTime();
+        float greenVlaue = (sin(timeValue) / 2.0f) + 0.5f;
+        int vertexColorLocation = glGetUniformLocation(shaderProgram, "uniColor");
+
         glUseProgram(shaderProgram);
+        glUniform3f(vertexColorLocation, 0.0f, greenVlaue, 0.0f);       
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
         glBindVertexArray(VAO1);
